@@ -10,6 +10,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type LNURLPayResponse3 struct {
+	Settled bool `json:"settled"`
+}
+
 func handleLNURL(w http.ResponseWriter, r *http.Request) {
 	username := mux.Vars(r)["username"]
 
@@ -23,22 +27,7 @@ func handleLNURL(w http.ResponseWriter, r *http.Request) {
 
 	log.Info().Str("username", username).Msg("got lnurl request")
 
-	if amount := r.URL.Query().Get("amount"); amount == "" {
-		// check if the receiver accepts comments
-		var commentLength int64 = 0
-		// TODO: support webhook comments
-
-		json.NewEncoder(w).Encode(lnurl.LNURLPayResponse1{
-			LNURLResponse:   lnurl.LNURLResponse{Status: "OK"},
-			Callback:        fmt.Sprintf("https://%s/.well-known/lnurlp/%s", s.Domain, username),
-			MinSendable:     1000,
-			MaxSendable:     100000000,
-			EncodedMetadata: makeMetadata(params),
-			CommentAllowed:  commentLength,
-			Tag:             "payRequest",
-		})
-
-	} else {
+	if amount := r.URL.Query().Get("amount"); amount != "" {
 		msat, err := strconv.Atoi(amount)
 		if err != nil {
 			json.NewEncoder(w).Encode(lnurl.ErrorResponse("amount is not integer"))
@@ -64,5 +53,32 @@ func handleLNURL(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			// TODO
 		}()
+	} else if paymentHash := r.URL.Query().Get("lookup"); paymentHash != "" {
+		invoice, err := lookupInvoice(params, paymentHash)
+
+		if err != nil {
+			json.NewEncoder(w).Encode(
+				lnurl.ErrorResponse("failed to lookup invoice: " + err.Error()))
+			return
+		}
+
+		json.NewEncoder(w).Encode(LNURLPayResponse3{
+			Settled: invoice.Settled,
+		})
+	} else {
+		// check if the receiver accepts comments
+		var commentLength int64 = 0
+		// TODO: support webhook comments
+
+		json.NewEncoder(w).Encode(lnurl.LNURLPayResponse1{
+			LNURLResponse:   lnurl.LNURLResponse{Status: "OK"},
+			Callback:        fmt.Sprintf("https://%s/.well-known/lnurlp/%s", s.Domain, username),
+			MinSendable:     1000,
+			MaxSendable:     100000000,
+			EncodedMetadata: makeMetadata(params),
+			CommentAllowed:  commentLength,
+			Tag:             "payRequest",
+		})
+
 	}
 }

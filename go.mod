@@ -3,6 +3,7 @@ module github.com/fiatjaf/satdress
 go 1.16
 
 require (
+	github.com/bumi/lookupinvoice v1.2.4-0.20210906230143-fa11bf44422a // indirect
 	github.com/cockroachdb/pebble v0.0.0-20210812144839-61318a019370
 	github.com/fiatjaf/go-lnurl v1.4.0
 	github.com/fiatjaf/makeinvoice v1.2.3
